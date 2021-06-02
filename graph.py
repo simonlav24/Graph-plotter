@@ -3,8 +3,6 @@ from random import uniform, randint, choice
 import pygame
 pygame.init()
 fpsClock = pygame.time.Clock()
-#pygame.font.init()
-#myfont = pygame.font.SysFont('Arial', 12)
 
 winWidth = 800
 winHeight = 500
@@ -32,24 +30,27 @@ def parami(pos):
 def drawPoint(pos):
 	pygame.draw.circle(win, (255,0,0) , param((pos[0],pos[1])) ,2)
 
-upLeft = None
-downRight = None
+def upLeft():
+	return parami((0,0))
+		
+def downRight():
+	return parami((winWidth,winHeight))
+
 
 def closestFive(x):
 	return 5 * round(x / 5)
 
 def drawGrid():
-	global upLeft, downRight
-	x = closestFive(upLeft[0])
-	while x < downRight[0]:
-		pygame.draw.line(win, (200,200,200), param((x,upLeft[1])), param((x,downRight[1])))
+	x = closestFive(upLeft()[0])
+	while x < downRight()[0]:
+		pygame.draw.line(win, (200,200,200), param((x,upLeft()[1])), param((x,downRight()[1])))
 		x += 5
-	y = closestFive(upLeft[1])
-	while y > downRight[1]:
-		pygame.draw.line(win, (200,200,200), param((upLeft[0],y)), param((downRight[0],y)))
+	y = closestFive(upLeft()[1])
+	while y > downRight()[1]:
+		pygame.draw.line(win, (200,200,200), param((upLeft()[0],y)), param((downRight()[0],y)))
 		y -= 5
-	pygame.draw.line(win, (100,100,100), param((0,upLeft[1])), param((0,downRight[1])))
-	pygame.draw.line(win, (100,100,100), param((upLeft[0],0)), param((downRight[0],0)))
+	pygame.draw.line(win, (100,100,100), param((0,upLeft()[1])), param((0,downRight()[1])))
+	pygame.draw.line(win, (100,100,100), param((upLeft()[0],0)), param((downRight()[0],0)))
 
 def drawGraph(rStart, rStop, dx, graph, color = (100,0,0)):
 	lines = []
@@ -65,6 +66,10 @@ def drawGraph2(time, values, color):
 		points.append(param((time[i], values[i])))
 	pygame.draw.lines(win, color, False, points, 2)
 
+def setCam(pos):
+	global cam
+	cam = (pos[0] * scaleFactor, -pos[1] * scaleFactor)
+
 ################################################################################ function example
 
 def f(x):
@@ -76,7 +81,7 @@ def f(x):
 
 ################################################################################ Main Loop
 def mainLoop(step, draw):
-	global upLeft, downRight, scaleFactor, cam
+	global scaleFactor, cam
 	mousePressed = False
 	run = True
 	while run:
@@ -115,8 +120,7 @@ def mainLoop(step, draw):
 			current = (pygame.mouse.get_pos()[0] / scaleFactor, pygame.mouse.get_pos()[1] / scaleFactor)
 			cam = vecAdd(camPrev, vecMult(vecSub(point, current), scaleFactor))
 		
-		upLeft = parami((0,0))
-		downRight = parami((winWidth,winHeight))
+		
 		# step:
 		step()
 		
@@ -138,7 +142,6 @@ def mainLoop(step, draw):
 # def draw():
 	# graph.drawPoint((0,14))
 # graph.mainLoop(step, draw)
-
 
 
 

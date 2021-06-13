@@ -2,6 +2,9 @@ from math import fabs, sqrt, cos, sin, pi, floor, ceil, e
 from random import uniform, randint, choice
 import pygame
 pygame.init()
+pygame.font.init()
+myfont = pygame.font.SysFont('Arial', 16)
+
 fpsClock = pygame.time.Clock()
 
 winWidth = 800
@@ -10,6 +13,7 @@ win = pygame.display.set_mode((winWidth,winHeight))
 pygame.display.set_caption('Simon\'s graph')
 
 scaleFactor = 5
+gridView = 20
 ################################################################################ transformations
 
 cam = (0,0)
@@ -36,21 +40,40 @@ def upLeft():
 def downRight():
 	return parami((winWidth,winHeight))
 
-
 def closestFive(x):
-	return 5 * round(x / 5)
+	if gridView == 0:
+		print("z")
+	return gridView * round(x / gridView)
+
+def clamp(x, up, down):
+	if x > up:
+		x = up
+	if x < down:
+		x = down
+	return x
 
 def drawGrid():
 	x = closestFive(upLeft()[0])
 	while x < downRight()[0]:
 		pygame.draw.line(win, (200,200,200), param((x,upLeft()[1])), param((x,downRight()[1])))
-		x += 5
+		x += gridView
 	y = closestFive(upLeft()[1])
 	while y > downRight()[1]:
 		pygame.draw.line(win, (200,200,200), param((upLeft()[0],y)), param((downRight()[0],y)))
-		y -= 5
+		y -= gridView
 	pygame.draw.line(win, (100,100,100), param((0,upLeft()[1])), param((0,downRight()[1])))
 	pygame.draw.line(win, (100,100,100), param((upLeft()[0],0)), param((downRight()[0],0)))
+	
+	x = closestFive(upLeft()[0] + gridView)
+	y = closestFive(upLeft()[1] + gridView)
+	while x < downRight()[0]:
+		text = myfont.render(str(x), True, (0, 0, 0))
+		win.blit(text, vecAdd(param((x, clamp(0, upLeft()[1], downRight()[1]))), (2, -18)))
+		x += gridView
+	while y > downRight()[1]:
+		text = myfont.render(str(y), True, (0, 0, 0))
+		win.blit(text, vecAdd(param((clamp(0, downRight()[0], upLeft()[0]) , y)), (2, -18)))
+		y -= gridView
 
 def drawGraph(rStart, rStop, dx, graph, color = (100,0,0)):
 	lines = []
@@ -81,7 +104,7 @@ def f(x):
 
 ################################################################################ Main Loop
 def mainLoop(step, draw):
-	global scaleFactor, cam
+	global scaleFactor, cam, gridView
 	mousePressed = False
 	run = True
 	while run:
@@ -101,17 +124,23 @@ def mainLoop(step, draw):
 				adjust = (mouse[0] - origin[0], mouse[1] - origin[1])
 				cam = vecAdd(cam, vecMult(adjust, 0.2))
 				scaleFactor += 0.2 * scaleFactor
+				
+				gridView = int((downRight()[0] - upLeft()[0])/10) + 1
+				gridView = max(5 * int(gridView/5), 5)
 			if event.type == pygame.MOUSEBUTTONDOWN and event.button == 5:
 				origin = param((0,0))
 				mouse = pygame.mouse.get_pos()
 				adjust = (mouse[0] - origin[0], mouse[1] - origin[1])
 				cam = vecSub(cam, vecMult(adjust, 0.2))
 				scaleFactor -= 0.2 * scaleFactor
-			# keys pressed once
+				
+				gridView = int((downRight()[0] - upLeft()[0])/10) + 1
+				gridView = max(5 * int(gridView/5), 5)
 			if event.type == pygame.KEYDOWN:
 				if event.key == pygame.K_h:
 					cam = (0,0)
 					scaleFactor = 5
+
 		keys = pygame.key.get_pressed()
 		if keys[pygame.K_ESCAPE]:
 			run = False

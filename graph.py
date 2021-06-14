@@ -1,5 +1,14 @@
 from math import fabs, sqrt, cos, sin, pi, floor, ceil, e
 from random import uniform, randint, choice
+import os
+if not os.path.exists("vector.py"):
+	print("fetching vector")
+	import urllib.request
+	with urllib.request.urlopen('https://raw.githubusercontent.com/simonlav24/wormsGame/master/vector.py') as f:
+		text = f.read().decode('utf-8')
+		with open("vector.py", "w+") as vectorpy:
+			vectorpy.write(text)
+from vector import *
 import pygame
 pygame.init()
 pygame.font.init()
@@ -12,24 +21,26 @@ winHeight = 500
 win = pygame.display.set_mode((winWidth,winHeight))
 pygame.display.set_caption('Simon\'s graph')
 
-scaleFactor = 5
-gridView = 20
-################################################################################ transformations
+# globalvars.scaleFactor = 5
+# globalvars.gridView = 20
+############################################################################### transformations
 
-cam = (0,0)
+class globalVars:
+	def __init__(self):
+		self.scaleFactor = 5
+		self.gridView = 20
+		self.cam = Vector()
+		
+		self.mousePressed = False
+		self.run = True
 
-def vecAdd(v1, v2):
-	return (v1[0] + v2[0], v1[1] + v2[1])
-def vecSub(v1, v2):
-	return (v1[0] - v2[0], v1[1] - v2[1])
-def vecMult(v, s):
-	return (v[0] * s, v[1] * s)
+globalvars = globalVars()
 
 def param(pos):
-	return (int(pos[0] * scaleFactor + winWidth/2 - cam[0]), int(-pos[1] * scaleFactor + winHeight/2 - cam[1]))
+	return Vector(int(pos[0] * globalvars.scaleFactor + winWidth/2 - globalvars.cam[0]), int(-pos[1] * globalvars.scaleFactor + winHeight/2 - globalvars.cam[1]))
 
 def parami(pos):
-	return ((pos[0] - winWidth/2 + cam[0]) / scaleFactor ,- (pos[1] - winHeight/2 + cam[1]) / scaleFactor)
+	return Vector((pos[0] - winWidth/2 + globalvars.cam[0]) / globalvars.scaleFactor ,- (pos[1] - winHeight/2 + globalvars.cam[1]) / globalvars.scaleFactor)
 
 def drawPoint(pos):
 	pygame.draw.circle(win, (255,0,0) , param((pos[0],pos[1])) ,2)
@@ -41,9 +52,9 @@ def downRight():
 	return parami((winWidth,winHeight))
 
 def closestFive(x):
-	if gridView == 0:
+	if globalvars.gridView == 0:
 		print("z")
-	return gridView * round(x / gridView)
+	return globalvars.gridView * round(x / globalvars.gridView)
 
 def clamp(x, up, down):
 	if x > up:
@@ -53,35 +64,35 @@ def clamp(x, up, down):
 	return x
 
 def drawGrid():
-	x = closestFive(upLeft()[0] - gridView)
+	x = closestFive(upLeft()[0] - globalvars.gridView)
 	while x < downRight()[0]:
 		pygame.draw.line(win, (230,230,230), param((x,upLeft()[1])), param((x,downRight()[1])))
-		x += gridView/5
-	y = closestFive(upLeft()[1] + gridView)
+		x += globalvars.gridView/5
+	y = closestFive(upLeft()[1] + globalvars.gridView)
 	while y > downRight()[1]:
 		pygame.draw.line(win, (230,230,230), param((upLeft()[0],y)), param((downRight()[0],y)))
-		y -= gridView/5
+		y -= globalvars.gridView/5
 	x = closestFive(upLeft()[0])
 	while x < downRight()[0]:
 		pygame.draw.line(win, (180,180,180), param((x,upLeft()[1])), param((x,downRight()[1])))
-		x += gridView
+		x += globalvars.gridView
 	y = closestFive(upLeft()[1])
 	while y > downRight()[1]:
 		pygame.draw.line(win, (180,180,180), param((upLeft()[0],y)), param((downRight()[0],y)))
-		y -= gridView
+		y -= globalvars.gridView
 	pygame.draw.line(win, (100,100,100), param((0,upLeft()[1])), param((0,downRight()[1])))
 	pygame.draw.line(win, (100,100,100), param((upLeft()[0],0)), param((downRight()[0],0)))
 	
-	x = closestFive(upLeft()[0] + gridView)
-	y = closestFive(upLeft()[1] + gridView)
+	x = closestFive(upLeft()[0] + globalvars.gridView)
+	y = closestFive(upLeft()[1] + globalvars.gridView)
 	while x < downRight()[0]:
 		text = myfont.render(str(x), True, (0, 0, 0))
-		win.blit(text, vecAdd(param((x, clamp(0, upLeft()[1], downRight()[1]))), (2, -18)))
-		x += gridView
+		win.blit(text, param((x, clamp(0, upLeft()[1], downRight()[1]))) + Vector(2, -18))
+		x += globalvars.gridView
 	while y > downRight()[1]:
 		text = myfont.render(str(y), True, (0, 0, 0))
-		win.blit(text, vecAdd(param((clamp(0, downRight()[0], upLeft()[0]) , y)), (2, -18)))
-		y -= gridView
+		win.blit(text, param((clamp(0, downRight()[0], upLeft()[0]) , y)) + Vector(2, -18))
+		y -= globalvars.gridView
 
 def drawGraph(rStart, rStop, dx, graph, color = (100,0,0)):
 	lines = []
@@ -98,14 +109,56 @@ def drawGraph2(time, values, color):
 	pygame.draw.lines(win, color, False, points, 2)
 
 def setCam(pos):
-	global cam
-	cam = (pos[0] * scaleFactor, -pos[1] * scaleFactor)
+	globalvars.cam = Vector(pos[0] * globalvars.scaleFactor, -pos[1] * globalvars.scaleFactor)
 	
 def setZoom(zoom):
-	global scaleFactor, gridView
-	scaleFactor = zoom
-	gridView = int((downRight()[0] - upLeft()[0])/10) + 1
-	gridView = max(5 * int(gridView/5), 5)
+	globalvars.scaleFactor = zoom
+	globalvars.gridView = int((downRight()[0] - upLeft()[0])/10) + 1
+	globalvars.gridView = max(5 * int(globalvars.gridView/5), 5)
+
+################################################################################ functions
+
+def eventHandle(events):
+	for event in events:
+		if event.type == pygame.QUIT:
+			globalvars.run = False
+		if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+			globalvars.point = Vector(pygame.mouse.get_pos()[0] / globalvars.scaleFactor, pygame.mouse.get_pos()[1] / globalvars.scaleFactor) 
+			globalvars.mousePressed = True
+			globalvars.camPrev = Vector(globalvars.cam[0], globalvars.cam[1])
+		# mouse control
+		if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+			globalvars.mousePressed = False
+		if event.type == pygame.MOUSEBUTTONDOWN and event.button == 4:
+			origin = param((0,0))
+			mouse = pygame.mouse.get_pos()
+			adjust = Vector(mouse[0] - origin[0], mouse[1] - origin[1])
+			globalvars.cam = globalvars.cam + adjust * 0.2
+			globalvars.scaleFactor += 0.2 * globalvars.scaleFactor
+			
+			globalvars.gridView = int((downRight()[0] - upLeft()[0])/10) + 1
+			globalvars.gridView = max(5 * int(globalvars.gridView/5), 5)
+		if event.type == pygame.MOUSEBUTTONDOWN and event.button == 5:
+			origin = param((0,0))
+			mouse = pygame.mouse.get_pos()
+			adjust = Vector(mouse[0] - origin[0], mouse[1] - origin[1])
+			globalvars.cam = globalvars.cam - adjust * 0.2
+			globalvars.scaleFactor -= 0.2 * globalvars.scaleFactor
+			
+			globalvars.gridView = int((downRight()[0] - upLeft()[0])/10) + 1
+			globalvars.gridView = max(5 * int(globalvars.gridView/5), 5)
+		if event.type == pygame.KEYDOWN:
+			if event.key == pygame.K_h:
+				globalvars.cam = (0,0)
+				globalvars.scaleFactor = 5
+
+	keys = pygame.key.get_pressed()
+	if keys[pygame.K_ESCAPE]:
+		globalvars.run = False
+		
+	if globalvars.mousePressed:
+		current = Vector(pygame.mouse.get_pos()[0] / globalvars.scaleFactor, pygame.mouse.get_pos()[1] / globalvars.scaleFactor)
+		globalvars.cam = globalvars.camPrev + (globalvars.point - current) * globalvars.scaleFactor
 
 ################################################################################ function example
 
@@ -117,56 +170,13 @@ def f(x):
 	return f(floor(x/2)) + f(ceil(x/2)) + 1
 
 ################################################################################ Main Loop
-def mainLoop(step, draw):
-	global scaleFactor, cam, gridView
-	mousePressed = False
-	run = True
-	while run:
-		for event in pygame.event.get():
-			if event.type == pygame.QUIT:
-				run = False
-			if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-				point = (pygame.mouse.get_pos()[0] / scaleFactor, pygame.mouse.get_pos()[1] / scaleFactor) 
-				mousePressed = True
-				camPrev = (cam[0], cam[1])
-			# mouse control
-			if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-				mousePressed = False
-			if event.type == pygame.MOUSEBUTTONDOWN and event.button == 4:
-				origin = param((0,0))
-				mouse = pygame.mouse.get_pos()
-				adjust = (mouse[0] - origin[0], mouse[1] - origin[1])
-				cam = vecAdd(cam, vecMult(adjust, 0.2))
-				scaleFactor += 0.2 * scaleFactor
-				
-				gridView = int((downRight()[0] - upLeft()[0])/10) + 1
-				gridView = max(5 * int(gridView/5), 5)
-			if event.type == pygame.MOUSEBUTTONDOWN and event.button == 5:
-				origin = param((0,0))
-				mouse = pygame.mouse.get_pos()
-				adjust = (mouse[0] - origin[0], mouse[1] - origin[1])
-				cam = vecSub(cam, vecMult(adjust, 0.2))
-				scaleFactor -= 0.2 * scaleFactor
-				
-				gridView = int((downRight()[0] - upLeft()[0])/10) + 1
-				gridView = max(5 * int(gridView/5), 5)
-			if event.type == pygame.KEYDOWN:
-				if event.key == pygame.K_h:
-					cam = (0,0)
-					scaleFactor = 5
 
-		keys = pygame.key.get_pressed()
-		if keys[pygame.K_ESCAPE]:
-			run = False
-		
-		if mousePressed:
-			current = (pygame.mouse.get_pos()[0] / scaleFactor, pygame.mouse.get_pos()[1] / scaleFactor)
-			cam = vecAdd(camPrev, vecMult(vecSub(point, current), scaleFactor))
-		
+def mainLoop(step, draw, eventHandler=eventHandle):
+	while globalvars.run:
+		eventHandler(pygame.event.get())
 		
 		# step:
 		step()
-		
 		
 		# draw:
 		win.fill((255,255,255))
@@ -183,8 +193,8 @@ def mainLoop(step, draw):
 # def step():
 	# pass
 # def draw():
-	# graph.drawPoint((0,14))
-# graph.mainLoop(step, draw)
+	# drawPoint((0,14))
+# mainLoop(step, draw)
 
 
 

@@ -5,77 +5,24 @@ from vector import *
 import sys
 import ast
 import argparse
-pygame.init()
-fpsClock = pygame.time.Clock()
-
-winWidth = 800
-winHeight = 500
-win = pygame.display.set_mode((winWidth,winHeight))
-pygame.display.set_caption('Simon\'s graph nodes')
-
-pygame.font.init()
+from graph import *
 myfont = pygame.font.SysFont('Arial', 22)
 
-scaleFactor = 5
-
-MOUSE_HAND = 0
-MOUSE_MOVE = 1
-MOUSE_EDGE = 2
+##################################################################################### 
 
 def parseArgs():
 	parser = argparse.ArgumentParser()
-	parser.add_argument('--file', type=str)
 	parser.add_argument('--graph', type=str)
 	return parser.parse_args()
 
-################################################################################ transformations
+colorScheme = [(35, 110, 150), (21, 178, 211), (255, 215, 0), (243, 135, 47), (255, 89, 143)]
 
-cam = (0,0)
-
-def vecAdd(v1, v2):
-	return (v1[0] + v2[0], v1[1] + v2[1])
-def vecSub(v1, v2):
-	return (v1[0] - v2[0], v1[1] - v2[1])
-def vecMult(v, s):
-	return (v[0] * s, v[1] * s)
-
-def param(pos):
-	return (int(pos[0] * scaleFactor + winWidth/2 - cam[0]), int(-pos[1] * scaleFactor + winHeight/2 - cam[1]))
-
-def parami(pos):
-	return ((pos[0] - winWidth/2 + cam[0]) / scaleFactor ,- (pos[1] - winHeight/2 + cam[1]) / scaleFactor)
-
-def drawPoint(pos):
-	pygame.draw.circle(win, (255,0,0) , param((pos[0],pos[1])) ,2)
-
-def upLeft():
-	return parami((0,0))
-		
-def downRight():
-	return parami((winWidth,winHeight))
-
-
-def closestMargin(x, margin=5):
-	if isinstance(x, tuple):
-		return (margin * round(x[0]/ margin), margin * round(x[1]/ margin))
-	else:
-		return margin * round(x / margin)
-
-def drawGrid():
-	x = closestMargin(upLeft()[0])
-	while x < downRight()[0]:
-		pygame.draw.line(win, (200,200,200), param((x,upLeft()[1])), param((x,downRight()[1])))
-		x += 5
-	y = closestMargin(upLeft()[1])
-	while y > downRight()[1]:
-		pygame.draw.line(win, (200,200,200), param((upLeft()[0],y)), param((downRight()[0],y)))
-		y -= 5
-	pygame.draw.line(win, (100,100,100), param((0,upLeft()[1])), param((0,downRight()[1])))
-	pygame.draw.line(win, (100,100,100), param((upLeft()[0],0)), param((downRight()[0],0)))
-
-def setCam(pos):
-	global cam
-	cam = (pos[0] * scaleFactor, -pos[1] * scaleFactor)
+DEFAULT_VERTEX_COLOR = colorScheme[1]
+DEFAULT_EDGE_COLOR = colorScheme[2]
+TEXT_COLOR = (0,0,0)
+VERTEX_RADIUS = 20
+EDGE_WIDTH = 5
+TRIANGLE = [Vector(0, VERTEX_RADIUS), Vector(-VERTEX_RADIUS,0), Vector(0,-VERTEX_RADIUS)]
 
 spots = []
 def giveSpot():
@@ -93,13 +40,11 @@ def giveSpot():
 def menuAddVertex(pos):
 	Vertex(randint(0,100), tup2vec(closestMargin(parami(pos))))
 
-################################################################################ Classes
-
-DEFAULT_VERTEX_COLOR = (255,150,150)
-DEFAULT_EDGE_COLOR = (150,255,150)
-TEXT_COLOR = (0,0,0)
-VERTEX_RADIUS = 20
-EDGE_WIDTH = 5
+def closestMargin(x, margin=5):
+	if isinstance(x, tuple):
+		return (margin * round(x[0]/ margin), margin * round(x[1]/ margin))
+	else:
+		return margin * round(x / margin)
 
 class Vertex:
 	_reg = []
@@ -113,11 +58,9 @@ class Vertex:
 	def draw(self):
 		vsurf = self.vSurf
 		pygame.draw.circle(win, (255,255,0) if self.selected else self.color, param(self.pos), VERTEX_RADIUS)
-		place = (self.pos[0] - (vsurf.get_width()/scaleFactor/2), self.pos[1] + vsurf.get_height()/scaleFactor/2)
-		win.blit(vsurf, (param(place)))
-
-TRIANGLE = [Vector(0, VERTEX_RADIUS), Vector(-VERTEX_RADIUS,0), Vector(0,-VERTEX_RADIUS)]		
-
+		place = (self.pos[0] - (vsurf.get_width()/globalvars.scaleFactor/2), self.pos[1] + vsurf.get_height()/globalvars.scaleFactor/2)
+		win.blit(vsurf, param(place))
+		
 class Edge:
 	_reg = []
 	def __init__(self, v1, v2, directed = False):
@@ -130,9 +73,8 @@ class Edge:
 		p1 = self.v1.pos + (self.v2.pos - self.v1.pos)
 		pygame.draw.line(win, self.color, param(self.v1.pos), param(self.v2.pos), EDGE_WIDTH)
 		angle = getAngleByTwoVectors(self.v2.pos, self.v1.pos)
-		triangle = [vectorCopy(v / scaleFactor).rotate(angle) + (self.v2.pos * 0.8 + self.v1.pos * 0.2) for v in TRIANGLE]
+		triangle = [vectorCopy(v / globalvars.scaleFactor).rotate(angle) + (self.v2.pos * 0.8 + self.v1.pos * 0.2) for v in TRIANGLE]
 		pygame.draw.polygon(win, self.color, [param(v) for v in triangle])
-		
 
 class Menu:
 	currentMenu = None
@@ -202,16 +144,9 @@ class Button:
 	def destroy(self):
 		Button._reg.remove(self)
 
-################################################################################ SET UP
-
-# for i in range(10):
-	# Vertex(i, giveSpot())
-# for i in range(10):
-	# Edge(choice(Vertex._reg), choice(Vertex._reg))
+##################################################################################### setup
 
 args = parseArgs()
-if args.file:
-	print(args.file)
 
 if args.graph:
 	counter = 0
@@ -222,22 +157,36 @@ if args.graph:
 	
 	for e in edgeInput:
 		Edge(Vertex._reg[e[0]], Vertex._reg[e[1]])
-	
 
+# example graph
+# for i in range(10):
+	# Vertex(i, giveSpot())
+# for i in range(10):
+	# Edge(choice(Vertex._reg), choice(Vertex._reg))
 
-################################################################################ Main Loop
+setZoom(5)
+
+##################################################################################### Main funcs
+
+MOUSE_HAND = 0
+MOUSE_MOVE = 1
+MOUSE_EDGE = 2
+
 mouseMode = MOUSE_HAND
 oneSelected = None
-mousePressed = False
-run = True
-while run:
-	for event in pygame.event.get():
+
+def nodeEventHandler(events):
+	global mouseMode, oneSelected
+	
+	mousePos = parami(pygame.mouse.get_pos())
+	
+	for event in events:
 		if event.type == pygame.QUIT:
-			run = False
+			globalvars.run = False
 		if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1: #mouse press main
-			point = (pygame.mouse.get_pos()[0] / scaleFactor, pygame.mouse.get_pos()[1] / scaleFactor) 
-			mousePressed = True
-			camPrev = (cam[0], cam[1])
+			globalvars.point = Vector(pygame.mouse.get_pos()[0] / globalvars.scaleFactor, pygame.mouse.get_pos()[1] / globalvars.scaleFactor) 
+			globalvars.mousePressed = True
+			globalvars.camPrev = Vector(globalvars.cam[0], globalvars.cam[1])
 			if Menu.currentMenu:
 				for button in Menu.currentMenu.buttons:
 					if button.selected:
@@ -248,57 +197,60 @@ while run:
 			if mouseMode == MOUSE_EDGE:
 				second = None
 				for vertex in Vertex._reg:
-					if vertex.pos[0] - VERTEX_RADIUS/scaleFactor < mousePos[0] and mousePos[0] < vertex.pos[0] + VERTEX_RADIUS/scaleFactor and \
-							vertex.pos[1] - VERTEX_RADIUS/scaleFactor < mousePos[1] and  mousePos[1] < vertex.pos[1] + VERTEX_RADIUS/scaleFactor:
+					if vertex.pos[0] - VERTEX_RADIUS/globalvars.scaleFactor < mousePos[0] and mousePos[0] < vertex.pos[0] + VERTEX_RADIUS/globalvars.scaleFactor and \
+							vertex.pos[1] - VERTEX_RADIUS/globalvars.scaleFactor < mousePos[1] and  mousePos[1] < vertex.pos[1] + VERTEX_RADIUS/globalvars.scaleFactor:
 						second = vertex
 						break
 				if second:
 					Edge(oneSelected, second)
 		if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
 			m = Menu(pygame.mouse.get_pos())
-			m.addString("menu")
-			m.addButton("click here")
 			m.addButton("add vertex", menuAddVertex, [m.winPos])
 			
 		# mouse control
 		if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-			mousePressed = False
+			globalvars.mousePressed = False
 		if event.type == pygame.MOUSEBUTTONDOWN and event.button == 4:
 			origin = param((0,0))
 			mouse = pygame.mouse.get_pos()
-			adjust = (mouse[0] - origin[0], mouse[1] - origin[1])
-			cam = vecAdd(cam, vecMult(adjust, 0.2))
-			scaleFactor += 0.2 * scaleFactor
+			adjust = Vector(mouse[0] - origin[0], mouse[1] - origin[1])
+			globalvars.cam = globalvars.cam + adjust * 0.2
+			globalvars.scaleFactor += 0.2 * globalvars.scaleFactor
+			
+			globalvars.gridView = int((downRight()[0] - upLeft()[0])/10) + 1
+			globalvars.gridView = max(5 * int(globalvars.gridView/5), 5)
 		if event.type == pygame.MOUSEBUTTONDOWN and event.button == 5:
 			origin = param((0,0))
 			mouse = pygame.mouse.get_pos()
-			adjust = (mouse[0] - origin[0], mouse[1] - origin[1])
-			cam = vecSub(cam, vecMult(adjust, 0.2))
-			scaleFactor -= 0.2 * scaleFactor
+			adjust = Vector(mouse[0] - origin[0], mouse[1] - origin[1])
+			globalvars.cam = globalvars.cam - adjust * 0.2
+			globalvars.scaleFactor -= 0.2 * globalvars.scaleFactor
+			
+			globalvars.gridView = int((downRight()[0] - upLeft()[0])/10) + 1
+			globalvars.gridView = max(5 * int(globalvars.gridView/5), 5)
 		# keys pressed once
 		if event.type == pygame.KEYDOWN:
 			if event.key == pygame.K_h:
-				cam = (0,0)
-				scaleFactor = 5
+				globalvars.cam = (0,0)
+				globalvars.scaleFactor = 5
+
 	lcontrol = False
 	keys = pygame.key.get_pressed()
 	if keys[pygame.K_ESCAPE]:
-		run = False
+		globalvars.run = False
 	if keys[pygame.K_LCTRL]:
 		lcontrol = True
 	
-	mousePos = parami(pygame.mouse.get_pos())
-	
-	if mousePressed:
+	if globalvars.mousePressed:
 		if mouseMode == MOUSE_HAND:
-			current = (pygame.mouse.get_pos()[0] / scaleFactor, pygame.mouse.get_pos()[1] / scaleFactor)
-			cam = vecAdd(camPrev, vecMult(vecSub(point, current), scaleFactor))
+			current = Vector(pygame.mouse.get_pos()[0] / globalvars.scaleFactor, pygame.mouse.get_pos()[1] / globalvars.scaleFactor)
+			globalvars.cam = globalvars.camPrev + (globalvars.point - current) * globalvars.scaleFactor
 		elif mouseMode == MOUSE_MOVE:
 			oneSelected.pos = Vector(closestMargin(mousePos[0]), closestMargin(mousePos[1]))
 		elif mouseMode == MOUSE_EDGE:
 			pass
 	
-	if not mousePressed:
+	if not globalvars.mousePressed:
 		oneSelected = None
 		if Menu.currentMenu:
 			for button in Menu.currentMenu.buttons:
@@ -308,8 +260,8 @@ while run:
 					button.selected = True
 		
 		for vertex in Vertex._reg:
-			if vertex.pos[0] - VERTEX_RADIUS/scaleFactor < mousePos[0] and mousePos[0] < vertex.pos[0] + VERTEX_RADIUS/scaleFactor and \
-					vertex.pos[1] - VERTEX_RADIUS/scaleFactor < mousePos[1] and  mousePos[1] < vertex.pos[1] + VERTEX_RADIUS/scaleFactor:
+			if vertex.pos[0] - VERTEX_RADIUS/globalvars.scaleFactor < mousePos[0] and mousePos[0] < vertex.pos[0] + VERTEX_RADIUS/globalvars.scaleFactor and \
+					vertex.pos[1] - VERTEX_RADIUS/globalvars.scaleFactor < mousePos[1] and  mousePos[1] < vertex.pos[1] + VERTEX_RADIUS/globalvars.scaleFactor:
 				vertex.selected = True
 				oneSelected = vertex
 				if lcontrol:
@@ -319,33 +271,20 @@ while run:
 				break
 		if not oneSelected:
 			mouseMode = MOUSE_HAND
-		
-	
-	# draw:
-	win.fill((255,255,255))
-	drawGrid()
-	
+
+def step():
+	pass
+def draw():
 	for edge in Edge._reg:
 		edge.draw()
 	for vertex in Vertex._reg:
 		vertex.draw()
 		vertex.selected = False
 		
-	if mousePressed and mouseMode == MOUSE_EDGE:
+	if globalvars.mousePressed and mouseMode == MOUSE_EDGE:
 		pygame.draw.line(win, DEFAULT_EDGE_COLOR, pygame.mouse.get_pos(), param(oneSelected.pos) , 10)
 		
 	if Menu.currentMenu:
 		Menu.currentMenu.draw()
-		#win.fill((0,0,0), (button.winPos, (button.width,button.height)))
 	
-	pygame.display.update()
-	fpsClock.tick(30)
-pygame.quit()
-
-
-
-
-
-
-
-
+mainLoop(step, draw, nodeEventHandler)

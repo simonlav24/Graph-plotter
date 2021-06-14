@@ -1,11 +1,18 @@
 from math import fabs, sqrt, cos, sin, pi, floor, ceil, e
 from random import uniform, randint, choice
 import pygame
-from vector import *
 import sys
 import ast
 import argparse
 from graph import *
+if not os.path.exists("vector.py"):
+	print("fetching vector")
+	import urllib.request
+	with urllib.request.urlopen('https://raw.githubusercontent.com/simonlav24/wormsGame/master/vector.py') as f:
+		text = f.read().decode('utf-8')
+		with open("vector.py", "w+") as vectorpy:
+			vectorpy.write(text)
+from vector import *
 myfont = pygame.font.SysFont('Arial', 22)
 
 ##################################################################################### 
@@ -18,6 +25,7 @@ def parseArgs():
 colorScheme = [(35, 110, 150), (21, 178, 211), (255, 215, 0), (243, 135, 47), (255, 89, 143)]
 
 DEFAULT_VERTEX_COLOR = colorScheme[1]
+DEFAULT_VERTEX_SELECTED_COLOR = colorScheme[2]
 DEFAULT_EDGE_COLOR = colorScheme[2]
 TEXT_COLOR = (0,0,0)
 VERTEX_RADIUS = 20
@@ -57,7 +65,7 @@ class Vertex:
 		self.selected = False
 	def draw(self):
 		vsurf = self.vSurf
-		pygame.draw.circle(win, (255,255,0) if self.selected else self.color, param(self.pos), VERTEX_RADIUS)
+		pygame.draw.circle(win, DEFAULT_VERTEX_SELECTED_COLOR if self.selected else self.color, param(self.pos), VERTEX_RADIUS)
 		place = (self.pos[0] - (vsurf.get_width()/globalvars.scaleFactor/2), self.pos[1] + vsurf.get_height()/globalvars.scaleFactor/2)
 		win.blit(vsurf, param(place))
 		

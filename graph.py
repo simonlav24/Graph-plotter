@@ -53,15 +53,14 @@ def clamp(x, up, down):
 	return x
 
 def drawGrid():
-	x = closestFive(upLeft()[0])
+	x = closestFive(upLeft()[0] - gridView)
 	while x < downRight()[0]:
 		pygame.draw.line(win, (230,230,230), param((x,upLeft()[1])), param((x,downRight()[1])))
 		x += gridView/5
-	y = closestFive(upLeft()[1])
+	y = closestFive(upLeft()[1] + gridView)
 	while y > downRight()[1]:
 		pygame.draw.line(win, (230,230,230), param((upLeft()[0],y)), param((downRight()[0],y)))
 		y -= gridView/5
-
 	x = closestFive(upLeft()[0])
 	while x < downRight()[0]:
 		pygame.draw.line(win, (180,180,180), param((x,upLeft()[1])), param((x,downRight()[1])))

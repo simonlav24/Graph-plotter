@@ -4,6 +4,7 @@ import pygame
 from vector import *
 import sys
 import ast
+import argparse
 pygame.init()
 fpsClock = pygame.time.Clock()
 
@@ -20,6 +21,13 @@ scaleFactor = 5
 MOUSE_HAND = 0
 MOUSE_MOVE = 1
 MOUSE_EDGE = 2
+
+def parseArgs():
+	parser = argparse.ArgumentParser()
+	parser.add_argument('--file', type=str)
+	parser.add_argument('--graph', type=str)
+	return parser.parse_args()
+
 ################################################################################ transformations
 
 cam = (0,0)
@@ -201,15 +209,21 @@ class Button:
 # for i in range(10):
 	# Edge(choice(Vertex._reg), choice(Vertex._reg))
 
+args = parseArgs()
+if args.file:
+	print(args.file)
 
-counter = 0
-vertexInput, edgeInput = ast.literal_eval(sys.argv[1])
-for v in vertexInput:
-	Vertex(v, Vector(giveSpot()[0], counter))
-	counter -= 10
+if args.graph:
+	counter = 0
+	vertexInput, edgeInput = ast.literal_eval(args.graph)
+	for v in vertexInput:
+		Vertex(v, Vector(giveSpot()[0], counter))
+		counter -= 10
 	
-for e in edgeInput:
-	Edge(Vertex._reg[e[0]], Vertex._reg[e[1]])
+	for e in edgeInput:
+		Edge(Vertex._reg[e[0]], Vertex._reg[e[1]])
+	
+
 
 ################################################################################ Main Loop
 mouseMode = MOUSE_HAND

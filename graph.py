@@ -55,11 +55,20 @@ def clamp(x, up, down):
 def drawGrid():
 	x = closestFive(upLeft()[0])
 	while x < downRight()[0]:
-		pygame.draw.line(win, (200,200,200), param((x,upLeft()[1])), param((x,downRight()[1])))
+		pygame.draw.line(win, (230,230,230), param((x,upLeft()[1])), param((x,downRight()[1])))
+		x += gridView/5
+	y = closestFive(upLeft()[1])
+	while y > downRight()[1]:
+		pygame.draw.line(win, (230,230,230), param((upLeft()[0],y)), param((downRight()[0],y)))
+		y -= gridView/5
+
+	x = closestFive(upLeft()[0])
+	while x < downRight()[0]:
+		pygame.draw.line(win, (180,180,180), param((x,upLeft()[1])), param((x,downRight()[1])))
 		x += gridView
 	y = closestFive(upLeft()[1])
 	while y > downRight()[1]:
-		pygame.draw.line(win, (200,200,200), param((upLeft()[0],y)), param((downRight()[0],y)))
+		pygame.draw.line(win, (180,180,180), param((upLeft()[0],y)), param((downRight()[0],y)))
 		y -= gridView
 	pygame.draw.line(win, (100,100,100), param((0,upLeft()[1])), param((0,downRight()[1])))
 	pygame.draw.line(win, (100,100,100), param((upLeft()[0],0)), param((downRight()[0],0)))
@@ -92,6 +101,12 @@ def drawGraph2(time, values, color):
 def setCam(pos):
 	global cam
 	cam = (pos[0] * scaleFactor, -pos[1] * scaleFactor)
+	
+def setZoom(zoom):
+	global scaleFactor, gridView
+	scaleFactor = zoom
+	gridView = int((downRight()[0] - upLeft()[0])/10) + 1
+	gridView = max(5 * int(gridView/5), 5)
 
 ################################################################################ function example
 

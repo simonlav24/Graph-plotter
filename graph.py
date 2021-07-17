@@ -16,13 +16,6 @@ myfont = pygame.font.SysFont('Arial', 16)
 
 fpsClock = pygame.time.Clock()
 
-winWidth = 800
-winHeight = 500
-win = pygame.display.set_mode((winWidth,winHeight))
-pygame.display.set_caption('Simon\'s graph')
-
-# globalvars.scaleFactor = 5
-# globalvars.gridView = 20
 ############################################################################### transformations
 
 class globalVars:
@@ -33,14 +26,20 @@ class globalVars:
 		
 		self.mousePressed = False
 		self.run = True
+		
+		self.winWidth = 800
+		self.winHeight = 500
 
 globalvars = globalVars()
 
+win = pygame.display.set_mode((globalvars.winWidth, globalvars.winHeight))
+pygame.display.set_caption('Simon\'s graph')
+
 def param(pos):
-	return Vector(int(pos[0] * globalvars.scaleFactor + winWidth/2 - globalvars.cam[0]), int(-pos[1] * globalvars.scaleFactor + winHeight/2 - globalvars.cam[1]))
+	return Vector(int(pos[0] * globalvars.scaleFactor + globalvars.winWidth/2 - globalvars.cam[0]), int(-pos[1] * globalvars.scaleFactor + globalvars.winHeight/2 - globalvars.cam[1]))
 
 def parami(pos):
-	return Vector((pos[0] - winWidth/2 + globalvars.cam[0]) / globalvars.scaleFactor ,- (pos[1] - winHeight/2 + globalvars.cam[1]) / globalvars.scaleFactor)
+	return Vector((pos[0] - globalvars.winWidth/2 + globalvars.cam[0]) / globalvars.scaleFactor ,- (pos[1] - globalvars.winHeight/2 + globalvars.cam[1]) / globalvars.scaleFactor)
 
 def drawPoint(pos):
 	pygame.draw.circle(win, (255,0,0) , param((pos[0],pos[1])) ,2)
@@ -49,7 +48,7 @@ def upLeft():
 	return parami((0,0))
 		
 def downRight():
-	return parami((winWidth,winHeight))
+	return parami((globalvars.winWidth, globalvars.winHeight))
 
 def closestFive(x):
 	if globalvars.gridView == 0:
@@ -107,6 +106,12 @@ def drawGraph2(time, values, color):
 	for i in range(len(time)):
 		points.append(param((time[i], values[i])))
 	pygame.draw.lines(win, color, False, points, 2)
+
+def setWinSize(size):
+	global win
+	globalvars.winWidth = size[0]
+	globalvars.winHeight = size[1]
+	win = pygame.display.set_mode((globalvars.winWidth, globalvars.winHeight))
 
 def setCam(pos):
 	globalvars.cam = Vector(pos[0] * globalvars.scaleFactor, -pos[1] * globalvars.scaleFactor)

@@ -99,6 +99,8 @@ def drawGraph(rStart, rStop, dx, graph, color = (100,0,0)):
 	while x < rStop:
 		lines.append(param((x, graph(x))))
 		x += dx
+		if x > rStop:
+			lines.append(param((rStop, graph(rStop))))
 	pygame.draw.lines(win, color, False, lines, 2)
 	
 def drawGraph2(time, values, color):

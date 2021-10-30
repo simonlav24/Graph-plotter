@@ -82,15 +82,16 @@ def drawGrid():
 	pygame.draw.line(win, (100,100,100), param((0,upLeft()[1])), param((0,downRight()[1])))
 	pygame.draw.line(win, (100,100,100), param((upLeft()[0],0)), param((downRight()[0],0)))
 	
-	x = closestFive(upLeft()[0] + globalvars.gridView)
-	y = closestFive(upLeft()[1] + globalvars.gridView)
+	x = closestFive(upLeft()[0])
+	y = closestFive(upLeft()[1])
+	# draw grid numbers
 	while x < downRight()[0]:
 		text = myfont.render(str(x), True, (0, 0, 0))
-		win.blit(text, param((x, clamp(0, upLeft()[1], downRight()[1]))) + Vector(2, -18))
+		win.blit(text, param((x, clamp(0, upLeft()[1] - 4, downRight()[1]))) + Vector(2, -18))
 		x += globalvars.gridView
 	while y > downRight()[1]:
 		text = myfont.render(str(y), True, (0, 0, 0))
-		win.blit(text, param((clamp(0, downRight()[0], upLeft()[0]) , y)) + Vector(2, -18))
+		win.blit(text, param((clamp(0, downRight()[0] - 4, upLeft()[0]) , y)) + Vector(2, -18))
 		y -= globalvars.gridView
 
 def drawGraph(rStart, rStop, dx, graph, color = (100,0,0)):
@@ -197,12 +198,13 @@ def mainLoop(step, draw, eventHandler=eventHandle):
 
 ################################################################################ project example:
 # import graph
+# def eventHandler(events):
+	# graph.eventHandle(events)
 # def step():
 	# pass
 # def draw():
-	# drawPoint((0,14))
-# mainLoop(step, draw)
-
+	# graph.drawPoint((0,14))
+# graph.mainLoop(step, draw)
 
 
 

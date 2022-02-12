@@ -33,7 +33,7 @@ class globalVars:
 		self.winWidth = 800
 		self.winHeight = 500
 
-globalVars()
+globalvars = globalVars()
 
 win = pygame.display.set_mode((globalVars._gv.winWidth, globalVars._gv.winHeight))
 pygame.display.set_caption('Simon\'s graph')

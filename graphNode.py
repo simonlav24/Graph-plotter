@@ -19,7 +19,7 @@ myfont = pygame.font.SysFont('Arial', 22)
 
 def parseArgs():
 	parser = argparse.ArgumentParser()
-	parser.add_argument('--graph', type=str)
+	parser.add_argument('-g', '--graph', type=str, help="graph mathematical definition, for example: ([1,2,3],[(1,2),(1,0)])")
 	return parser.parse_args()
 
 colorScheme = [(35, 110, 150), (21, 178, 211), (255, 215, 0), (243, 135, 47), (255, 89, 143)]

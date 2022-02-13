@@ -17,7 +17,9 @@ pygame.font.init()
 ############################################################################### transformations
 	
 class Graph:
+	_reg = []
 	def __init__(self, pos, size, font, aafont=True):
+		Graph._reg.append(self)
 		self.pos = vectorCopy(pos)
 		self.size = vectorCopy(size)
 		self.scaleFactor = 5
@@ -36,11 +38,14 @@ class Graph:
 			mousePos = tup2vec(pygame.mouse.get_pos()) - Vector(self.pos[0], self.pos[1])
 			if mousePosition:
 				mousePos = mousePosition
+			mousePos = tup2vec(mousePos) - Vector(self.pos[0], self.pos[1])
 			current = Vector(mousePos[0] / self.scaleFactor, mousePos[1] / self.scaleFactor)
 			self.cam = self.camPrev + (self.point - current) * self.scaleFactor
 	def draw(self):
 		self.surf.fill((255,255,255))
 		self.drawGrid()
+	def setCam(self, pos):
+		self.cam = Vector(pos[0], pos[1])
 	def drawGraph2(self, time, values, color):
 		points = []
 		for i in range(len(time)):

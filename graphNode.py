@@ -1,7 +1,6 @@
 from math import fabs, sqrt, cos, sin, pi, floor, ceil, e
 from random import uniform, randint, choice
 import pygame
-import sys
 import ast
 import argparse
 from graph import *
@@ -13,9 +12,12 @@ if not os.path.exists("vector.py"):
 		with open("vector.py", "w+") as vectorpy:
 			vectorpy.write(text)
 from vector import *
-myfont = pygame.font.SysFont('Arial', 22)
+from menu import *
+myfont = pygame.font.SysFont('Tahoma', 22)
 
 ##################################################################################### 
+
+fps = 60
 
 def parseArgs():
 	parser = argparse.ArgumentParser()
@@ -26,11 +28,12 @@ colorScheme = [(35, 110, 150), (21, 178, 211), (255, 215, 0), (243, 135, 47), (2
 
 DEFAULT_VERTEX_COLOR = colorScheme[1]
 DEFAULT_VERTEX_SELECTED_COLOR = colorScheme[2]
+VERTEX_ROOT = (255,0,0)
 DEFAULT_EDGE_COLOR = colorScheme[2]
 TEXT_COLOR = (0,0,0)
-VERTEX_RADIUS = 20
+VERTEX_RADIUS = 15
 EDGE_WIDTH = 5
-TRIANGLE = [Vector(0, VERTEX_RADIUS), Vector(-VERTEX_RADIUS,0), Vector(0,-VERTEX_RADIUS)]
+TRIANGLE = [Vector(0, VERTEX_RADIUS/2), Vector(-VERTEX_RADIUS,0), Vector(0,-VERTEX_RADIUS/2)]
 
 spots = []
 def giveSpot():
@@ -56,11 +59,12 @@ def closestMargin(x, margin=5):
 
 class Vertex:
 	_reg = []
+	_selected = None
 	def __init__(self, value, pos=Vector(0,0)):
 		Vertex._reg.append(self)
 		self.pos = pos
 		self.value = value
-		self.vSurf = myfont.render(str(self.value), False, TEXT_COLOR)
+		self.vSurf = myfont.render(str(self.value), True, TEXT_COLOR)
 		self.color = DEFAULT_VERTEX_COLOR
 		self.selected = False
 	def draw(self):
@@ -76,81 +80,134 @@ class Edge:
 		self.v1 = v1
 		self.v2 = v2
 		self.color = DEFAULT_EDGE_COLOR
+		self.directed = directed
 	def draw(self):
-		distance = dist(self.v1.pos, self.v2.pos)
-		p1 = self.v1.pos + (self.v2.pos - self.v1.pos)
-		pygame.draw.line(win, self.color, param(self.v1.pos), param(self.v2.pos), EDGE_WIDTH)
+		if self.directed:
+			trianglePos = self.v2.pos - normalize(self.v2.pos - self.v1.pos) * 2*VERTEX_RADIUS / globalvars.scaleFactor
+		else:
+			trianglePos = self.v2.pos
+		pygame.draw.line(win, self.color, param(self.v1.pos), param(trianglePos), EDGE_WIDTH)
+		if not self.directed:
+			return
 		angle = getAngleByTwoVectors(self.v2.pos, self.v1.pos)
-		triangle = [vectorCopy(v / globalvars.scaleFactor).rotate(angle) + (self.v2.pos * 0.8 + self.v1.pos * 0.2) for v in TRIANGLE]
+		triangle = [vectorCopy(v / globalvars.scaleFactor).rotate(angle) + trianglePos for v in TRIANGLE]
 		pygame.draw.polygon(win, self.color, [param(v) for v in triangle])
 
-class Menu:
-	currentMenu = None
-	BACK_COLOR = (100,100,100)
-	TEXT_COLOR = (0,0,0)
-	BACK_SELECTED_COLOR = (150,150,150)
-	def __init__(self, winPos):
-		self.winPos = tup2vec(winPos)
-		self.elements = []
-		self.buttons = []
-		self.currentHeight = 5
-		self.dims = [0,0]
-		self.rect = [winPos, self.dims]
-		Menu.currentMenu = self
-	def addString(self, string):
-		self.elements.append(MenuString(string, self.winPos + Vector(5, self.currentHeight)))
-		self.currentHeight += self.elements[-1].height + 5
-		self.dims[0] = max(self.dims[0], self.elements[-1].width + 15)
-		self.dims[1] = self.currentHeight + 5
-	def addButton(self, text, action = None, args = None):
-		b = Button(text, self.winPos + Vector(5, self.currentHeight), action, args)
-		self.elements.append(b)
-		self.buttons.append(b)
-		self.currentHeight += self.elements[-1].height + 5
-		self.dims[0] = max(self.dims[0], self.elements[-1].width + 20)
-		self.dims[1] = self.currentHeight
-	def draw(self):
-		pygame.draw.rect(win, Menu.BACK_COLOR, self.rect)
-		for e in self.elements:
-			e.draw()
-	def destroy(self):
-		for b in self.buttons:
-			b.destroy()
-		Menu.currentMenu = None
-	
-class MenuString:
-	def __init__(self, string, winPos):
-		self.winPos = winPos
-		self.surf = myfont.render(string, False, Menu.TEXT_COLOR)
-		self.width = self.surf.get_width()
-		self.height = self.surf.get_height()
-	def draw(self):
-		win.blit(self.surf, self.winPos)
-	
-class Button:
-	_reg = []
-	def __init__(self, text ,winPos, action = None, args=None):
-		Button._reg.append(self)
-		self.text = text
-		self.selected = False
-		self.action = action
-		self.args = args
-		self.surf = myfont.render(text, False, Menu.TEXT_COLOR)
-		self.width = self.surf.get_width()
-		self.height = self.surf.get_height() + 10
-		self.winPos = winPos
-	def activate(self):
-		if self.action:
-			self.action(*self.args)
+#####################################################################################
+
+def neighbors(v):
+	for edge in Edge._reg:
+		if edge.directed:
+			if edge.v1 == v:
+				yield edge.v2
 		else:
-			print("epmty button activated")
+			if edge.v1 == v or edge.v2 == v:
+				yield edge.v1
+				yield edge.v2
+
+def makeRoot(v):
+	if Algo._root:
+		Algo._root.color = DEFAULT_VERTEX_COLOR
+	Algo._root = v
+	v.color = VERTEX_ROOT
+
+class Algo:
+	_current = None
+	_root = None
 	def step(self):
 		pass
-	def draw(self):
-		pygame.draw.rect(win, Menu.BACK_COLOR if not self.selected else Menu.BACK_SELECTED_COLOR, (self.winPos, (self.width + 10, self.height)))
-		win.blit(self.surf, self.winPos + Vector(5,5))
-	def destroy(self):
-		Button._reg.remove(self)
+
+class algoBFS(Algo):
+	def __init__(self):
+		Algo._current = self
+		self.root = None
+		self.visited = []
+		self.queue = []
+		self.colors = {"unvisited": (255,255,0), "visited": (0,0,255), "queue": (0,255,0), "root": (255,0,0)}
+		self.time = 0
+	def initAlgo(self):
+		if Algo._root:
+			self.root = Algo._root
+		else:
+			self.root = Vertex._reg[0]
+		self.queue = [self.root]
+		for v in Vertex._reg:
+			if v == self.root:
+				continue
+			v.color = self.colors["unvisited"]
+
+	def step(self):
+		self.time += 1
+		if self.time % (fps//2) != 0:
+			return
+		if len(self.queue) == 0:
+			Algo._current = None
+			return
+		currentNode = self.queue.pop(0)
+		currentNode.color = self.colors["visited"]
+		if currentNode == self.root:
+			self.root.color = self.colors["root"]
+		self.visited.append(currentNode)
+		for neighbor in neighbors(currentNode):
+			if not neighbor in self.visited and not neighbor in self.queue:
+				self.queue.append(neighbor)
+				neighbor.color = self.colors["queue"]
+
+def createGridGraph():
+	i = 0
+	gridSize = 10
+	for y in range(-gridSize//2, gridSize//2):
+		for x in range(-gridSize//2, gridSize//2):
+			Vertex(i, Vector(x * 10, y * 10))
+			i += 1
+
+	for v in Vertex._reg:
+		vIndex = Vertex._reg.index(v)
+		if vIndex >= len(Vertex._reg) - 1:
+			continue
+		if (vIndex + 1) % gridSize == 0:
+			continue
+		Edge(v, Vertex._reg[vIndex + 1], directed=False)
+		if vIndex + gridSize >= len(Vertex._reg):
+			continue
+		Edge(v, Vertex._reg[vIndex + gridSize], directed=False)
+
+##################################################################################### menu
+
+def initializeRightClickMenu():
+	menuRightClick = findMenu("rightClick")
+	if menuRightClick:
+		Menu._reg.remove(menuRightClick)
+
+	menuRightClick = Menu(name="rightClick" ,pos=pygame.mouse.get_pos(), size=Vector(100,100), register=True)
+	menuRightClick.insert(MENU_BUTTON, text="Add Vertex", key="addVertex")
+
+def initializeRightClickVertex():
+	menuRightClick = Menu(name="rightClickVertex" ,pos=pygame.mouse.get_pos(), size=Vector(100,80), register=True)
+	Menu.parameters = [Vertex._selected]
+	menuRightClick.insert(MENU_BUTTON, text="make root", key="makeRoot")
+
+def initializeAlgoMenu():
+	menuAlgo = Menu(name="algo" ,pos=Vector(10,10), size=Vector(100,600), register=True)
+	menuAlgo.insert(MENU_BUTTON, text="Run BFS", key="runBfs")
+	menuAlgo.insert(MENU_BUTTON, text="test2", key="test2")
+	menuAlgo.insert(MENU_BUTTON, text="test3", key="test3")
+
+def menuEvents(event):
+	if event.key == "addVertex":
+		Vertex(str(len(Vertex._reg)), pos=parami(closestMargin(event.getSuperMenu().pos)))
+	
+	if event.key == "makeRoot":
+		print(Vertex._selected)
+		makeRoot(event.getSuperMenu().parameters[0])
+
+	if event.key == "runBfs":
+		algoBFS().initAlgo()
+
+	if event.getSuperMenu().name == "rightClick":
+		Menu._reg.remove(event.getSuperMenu())
+	if event.getSuperMenu().name == "rightClickVertex":
+		Menu._reg.remove(event.getSuperMenu())
 
 ##################################################################################### setup
 
@@ -166,14 +223,20 @@ if args.graph:
 	for e in edgeInput:
 		Edge(Vertex._reg[e[0]], Vertex._reg[e[1]])
 
+# createGridGraph()
 # example graph
 # for i in range(10):
-	# Vertex(i, giveSpot())
+# 	Vertex(i, giveSpot())
 # for i in range(10):
-	# Edge(choice(Vertex._reg), choice(Vertex._reg))
+# 	Edge(choice(Vertex._reg), choice(Vertex._reg))
 
 setZoom(5)
+setFps(fps)
+setWinSize((1280, 720))
+Menu._font = myfont
+Menu._win = win
 
+initializeAlgoMenu()
 ##################################################################################### Main funcs
 
 MOUSE_HAND = 0
@@ -189,18 +252,13 @@ def nodeEventHandler(events):
 	mousePos = parami(pygame.mouse.get_pos())
 	
 	for event in events:
+		menuHandleEvents(event, menuEvents)
 		if event.type == pygame.QUIT:
 			globalvars.run = False
 		if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1: #mouse press main
 			globalvars.point = Vector(pygame.mouse.get_pos()[0] / globalvars.scaleFactor, pygame.mouse.get_pos()[1] / globalvars.scaleFactor) 
 			globalvars.mousePressed = True
 			globalvars.camPrev = Vector(globalvars.cam[0], globalvars.cam[1])
-			if Menu.currentMenu:
-				for button in Menu.currentMenu.buttons:
-					if button.selected:
-						button.activate()
-			if Menu.currentMenu:
-				Menu.currentMenu.destroy()
 		if event.type == pygame.MOUSEBUTTONUP and event.button == 1: #mouse release main
 			if mouseMode == MOUSE_EDGE:
 				second = None
@@ -212,9 +270,14 @@ def nodeEventHandler(events):
 				if second:
 					Edge(oneSelected, second)
 		if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
-			m = Menu(pygame.mouse.get_pos())
-			m.addButton("add vertex", menuAddVertex, [m.winPos])
-			
+			pass
+		
+		if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3: #right click
+			if Vertex._selected:
+				initializeRightClickVertex()
+			else:
+				initializeRightClickMenu()
+
 		# mouse control
 		if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
 			globalvars.mousePressed = False
@@ -260,17 +323,12 @@ def nodeEventHandler(events):
 	
 	if not globalvars.mousePressed:
 		oneSelected = None
-		if Menu.currentMenu:
-			for button in Menu.currentMenu.buttons:
-				button.selected = False
-				if pygame.mouse.get_pos()[0] > button.winPos[0] and pygame.mouse.get_pos()[0] < button.winPos[0] + button.width and\
-						pygame.mouse.get_pos()[1] > button.winPos[1] and pygame.mouse.get_pos()[1] < button.winPos[1] + button.height:
-					button.selected = True
-		
+		Vertex._selected = None
 		for vertex in Vertex._reg:
 			if vertex.pos[0] - VERTEX_RADIUS/globalvars.scaleFactor < mousePos[0] and mousePos[0] < vertex.pos[0] + VERTEX_RADIUS/globalvars.scaleFactor and \
 					vertex.pos[1] - VERTEX_RADIUS/globalvars.scaleFactor < mousePos[1] and  mousePos[1] < vertex.pos[1] + VERTEX_RADIUS/globalvars.scaleFactor:
 				vertex.selected = True
+				Vertex._selected = vertex
 				oneSelected = vertex
 				if lcontrol:
 					mouseMode = MOUSE_EDGE
@@ -281,7 +339,10 @@ def nodeEventHandler(events):
 			mouseMode = MOUSE_HAND
 
 def step():
-	pass
+	menuStep()
+	if Algo._current:
+		Algo._current.step()
+
 def draw():
 	for edge in Edge._reg:
 		edge.draw()
@@ -291,8 +352,6 @@ def draw():
 		
 	if globalvars.mousePressed and mouseMode == MOUSE_EDGE:
 		pygame.draw.line(win, DEFAULT_EDGE_COLOR, pygame.mouse.get_pos(), param(oneSelected.pos) , 10)
-		
-	if Menu.currentMenu:
-		Menu.currentMenu.draw()
-	
+	menuDraw()
+
 mainLoop(step, draw, nodeEventHandler)

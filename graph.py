@@ -13,7 +13,6 @@ import pygame
 # pygame.init()
 pygame.font.init()
 
-
 fpsClock = pygame.time.Clock()
 
 ############################################################################### transformations
@@ -26,6 +25,7 @@ class globalVars:
 		self.scaleFactor = 5
 		self.gridView = 20
 		self.cam = Vector()
+		self.fps = 0
 		
 		self.mousePressed = False
 		self.run = True
@@ -122,6 +122,9 @@ def setWinSize(size):
 	globalVars._gv.winHeight = size[1]
 	win = pygame.display.set_mode((globalVars._gv.winWidth, globalVars._gv.winHeight))
 
+def setFps(fps):
+	globalVars._gv.fps = fps
+
 def setCam(pos):
 	globalVars._gv.cam = Vector(pos[0] * globalVars._gv.scaleFactor, -pos[1] * globalVars._gv.scaleFactor)
 	
@@ -198,7 +201,8 @@ def mainLoop(step, draw, eventHandler=eventHandle):
 		draw()
 		
 		pygame.display.update()
-		fpsClock.tick(60)
+		if globalVars._gv.fps:	
+			fpsClock.tick(globalVars._gv.fps)
 	pygame.quit()
 
 

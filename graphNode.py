@@ -1,5 +1,5 @@
 from math import fabs, sqrt, cos, sin, pi, floor, ceil, e
-from random import uniform, randint, choice
+from random import uniform, randint, choice, shuffle
 import pygame
 import ast
 import argparse
@@ -57,6 +57,12 @@ def closestMargin(x, margin=5):
 	else:
 		return margin * round(x / margin)
 
+class GraphManager:
+	_gm = None
+	def __init__(self):
+		GraphManager._gm = self
+		self.currentDirected = False
+
 class Vertex:
 	_reg = []
 	_selected = None
@@ -95,7 +101,7 @@ class Edge:
 
 #####################################################################################
 
-def neighbors(v):
+def listNeighbors(v):
 	for edge in Edge._reg:
 		if edge.directed:
 			if edge.v1 == v:
@@ -148,18 +154,55 @@ class algoBFS(Algo):
 		if currentNode == self.root:
 			self.root.color = self.colors["root"]
 		self.visited.append(currentNode)
-		for neighbor in neighbors(currentNode):
+		for neighbor in listNeighbors(currentNode):
 			if not neighbor in self.visited and not neighbor in self.queue:
 				self.queue.append(neighbor)
 				neighbor.color = self.colors["queue"]
 
-def createGridGraph():
-	i = 0
+class algoDFS(Algo):
+	def __init__(self, order="ordered"):
+		Algo._current = self
+		self.root = None
+		self.visited = []
+		self.stack = []
+		self.colors = {"unvisited": (255,255,0), "visited": (0,0,255), "stack": (0,255,0), "root": (255,0,0)}
+		self.time = 0
+		self.order = order
+	def initAlgo(self):
+		if Algo._root:
+			self.root = Algo._root
+		else:
+			self.root = Vertex._reg[0]
+		self.stack = [self.root]
+		for v in Vertex._reg:
+			if v == self.root:
+				continue
+			v.color = self.colors["unvisited"]
+	def step(self):
+		self.time += 1
+		if self.time % (fps//2) != 0:
+			return
+		if len(self.stack) == 0:
+			Algo._current = None
+			return
+		currentNode = self.stack.pop()
+		currentNode.color = self.colors["visited"]
+		if currentNode == self.root:
+			self.root.color = self.colors["root"]
+		self.visited.append(currentNode)
+		neighbors = list(listNeighbors(currentNode))
+		if self.order == "random":
+			shuffle(neighbors)
+		for neighbor in neighbors:
+			if not neighbor in self.visited and not neighbor in self.stack:
+				self.stack.append(neighbor)
+				neighbor.color = self.colors["stack"]
+
+def createGridGraph(directed):
 	gridSize = 10
 	for y in range(-gridSize//2, gridSize//2):
 		for x in range(-gridSize//2, gridSize//2):
-			Vertex(i, Vector(x * 10, y * 10))
-			i += 1
+			Vertex(len(Vertex._reg), Vector(x * 10, y * 10))
 
 	for v in Vertex._reg:
 		vIndex = Vertex._reg.index(v)
@@ -167,10 +210,24 @@ def createGridGraph():
 			continue
 		if (vIndex + 1) % gridSize == 0:
 			continue
-		Edge(v, Vertex._reg[vIndex + 1], directed=False)
+		Edge(v, Vertex._reg[vIndex + 1], directed)
 		if vIndex + gridSize >= len(Vertex._reg):
 			continue
-		Edge(v, Vertex._reg[vIndex + gridSize], directed=False)
+		Edge(v, Vertex._reg[vIndex + gridSize], directed)
+
+def createRandomGraph():
+	for i in range(10):
+		Vertex(len(Vertex._reg), giveSpot())
+	for i in range(10):
+		Edge(choice(Vertex._reg), choice(Vertex._reg), choice([True, False]))
+
+def createClique(n, directed=False):
+	for i in range(n):
+		pos = vectorFromAngle(i * 2 * pi / n) * 50
+		Vertex(len(Vertex._reg), pos)
+	for i in range(n):
+		for j in range(i + 1, n):
+			Edge(Vertex._reg[i], Vertex._reg[j], directed)
 
 ##################################################################################### menu
 
@@ -179,37 +236,83 @@ def initializeRightClickMenu():
 	if menuRightClick:
 		Menu._reg.remove(menuRightClick)
 
-	menuRightClick = Menu(name="rightClick" ,pos=pygame.mouse.get_pos(), size=Vector(100,100), register=True)
-	menuRightClick.insert(MENU_BUTTON, text="Add Vertex", key="addVertex")
+	menuRightClick = Menu(name="rightClick" ,pos=pygame.mouse.get_pos(), size=Vector(200,100), register=True)
+	menuRightClick.insert(MENU_BUTTON, text="Add Vertex", key="addVertex", customSize=35)
 
 def initializeRightClickVertex():
-	menuRightClick = Menu(name="rightClickVertex" ,pos=pygame.mouse.get_pos(), size=Vector(100,80), register=True)
+	menuRightClick = Menu(name="rightClickVertex" ,pos=pygame.mouse.get_pos(), size=Vector(200,100), register=True)
 	Menu.parameters = [Vertex._selected]
-	menuRightClick.insert(MENU_BUTTON, text="make root", key="makeRoot")
+	menuRightClick.insert(MENU_BUTTON, text="make root", key="makeRoot", customSize=35)
 
 def initializeAlgoMenu():
-	menuAlgo = Menu(name="algo" ,pos=Vector(10,10), size=Vector(100,600), register=True)
-	menuAlgo.insert(MENU_BUTTON, text="Run BFS", key="runBfs")
-	menuAlgo.insert(MENU_BUTTON, text="test2", key="test2")
-	menuAlgo.insert(MENU_BUTTON, text="test3", key="test3")
+	menuAlgo = Menu(name="algo" ,pos=Vector(10,10), size=Vector(200,600), register=True)
+	menuAlgo.insert(MENU_BUTTON, text="Clear Graph", key="clear", customSize=35)
+	menuAlgo.insert(MENU_COMBOS, key="edgeDirected", items = ["undirected", "directed"], customSize=35)
+	menuAlgo.insert(MENU_TEXT, text="Algorithms", customSize=35)
+	menuAlgo.insert(MENU_BUTTON, text="Reset", key="reset", customSize=35)
+	menuAlgo.insert(MENU_BUTTON, text="Run BFS", key="runBfs", customSize=35)
+	menuAlgo.insert(MENU_BUTTON, text="Run DFS", key="runDfs", customSize=35)
+	menuAlgo.insert(MENU_TEXT, text="Create Graph", customSize=35)
+	menuAlgo.insert(MENU_BUTTON, text="Grid Graph", key="createGrid", customSize=35)
+	menuAlgo.insert(MENU_BUTTON, text="Random Graph", key="createRandom", customSize=35)
+
+	subClique = Menu(name="subClique", orientation=HORIZONTAL, customSize=35)
+	subClique.insert(MENU_UPDOWN, key="cliqueNum", value=10, text="10",customSize=45)
+	subClique.insert(MENU_BUTTON, text="Clique", key="createClique")
+	menuAlgo.addElement(subClique)
 
 def menuEvents(event):
-	if event.key == "addVertex":
+	values = {}
+	event.getSuperMenu().evaluate(values)
+	key = event.key
+	value = event.value
+	if key == "addVertex":
 		Vertex(str(len(Vertex._reg)), pos=parami(closestMargin(event.getSuperMenu().pos)))
 	
-	if event.key == "makeRoot":
+	if key == "makeRoot":
 		print(Vertex._selected)
 		makeRoot(event.getSuperMenu().parameters[0])
 
-	if event.key == "runBfs":
-		algoBFS().initAlgo()
+	if key == "edgeDirected":
+		if value == "directed":
+			GraphManager._gm.currentDirected = True
+		else:
+			GraphManager._gm.currentDirected = False
 
+	if key == "reset":
+		for v in Vertex._reg:
+			v.color = DEFAULT_VERTEX_COLOR
+		for e in Edge._reg:
+			e.color = DEFAULT_EDGE_COLOR
+		Algo._root = None
+		Algo._current = None
+	if key == "clear":
+		Vertex._reg.clear()
+		Edge._reg.clear()
+	if key == "runBfs":
+		algoBFS().initAlgo()
+	if key == "runDfs":
+		algoDFS().initAlgo()
+
+	if key == "createGrid":
+		createGridGraph(GraphManager._gm.currentDirected)
+	if key == "createRandom":
+		createRandomGraph()
+	if key == "createClique":
+		createClique(values["cliqueNum"], GraphManager._gm.currentDirected)
+
+	# end
 	if event.getSuperMenu().name == "rightClick":
 		Menu._reg.remove(event.getSuperMenu())
 	if event.getSuperMenu().name == "rightClickVertex":
 		Menu._reg.remove(event.getSuperMenu())
+	
+
+	
 
 ##################################################################################### setup
+
+GraphManager()
 
 args = parseArgs()
 
@@ -223,7 +326,7 @@ if args.graph:
 	for e in edgeInput:
 		Edge(Vertex._reg[e[0]], Vertex._reg[e[1]])
 
-# createGridGraph()
+# createGridGraph(directed=False)
 # example graph
 # for i in range(10):
 # 	Vertex(i, giveSpot())
@@ -268,7 +371,7 @@ def nodeEventHandler(events):
 						second = vertex
 						break
 				if second:
-					Edge(oneSelected, second)
+					Edge(oneSelected, second, GraphManager._gm.currentDirected)
 		if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
 			pass
 		

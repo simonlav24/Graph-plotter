@@ -35,6 +35,9 @@ VERTEX_RADIUS = 15
 EDGE_WIDTH = 5
 TRIANGLE = [Vector(0, VERTEX_RADIUS/2), Vector(-VERTEX_RADIUS,0), Vector(0,-VERTEX_RADIUS/2)]
 
+for i in TRIANGLE:
+    i += Vector(VERTEX_RADIUS, 0)
+
 spots = []
 def giveSpot():
 	taken = True
@@ -87,17 +90,71 @@ class Edge:
 		self.v2 = v2
 		self.color = DEFAULT_EDGE_COLOR
 		self.directed = directed
+		self.animate = None
 	def draw(self):
 		if self.directed:
 			trianglePos = self.v2.pos - normalize(self.v2.pos - self.v1.pos) * 2*VERTEX_RADIUS / globalvars.scaleFactor
 		else:
 			trianglePos = self.v2.pos
-		pygame.draw.line(win, self.color, param(self.v1.pos), param(trianglePos), EDGE_WIDTH)
+		# pygame.draw.line(win, self.color, param(self.v1.pos), param(trianglePos), EDGE_WIDTH)
+		normal = normalize((self.v2.pos - self.v1.pos).getNormal())
+		middle = self.v1.pos/2 + self.v2.pos/2 + 10 * normal
+		first = self.v1.pos + normalize(middle - self.v1.pos) * (VERTEX_RADIUS / globalvars.scaleFactor)
+		last = self.v2.pos + normalize(middle - self.v2.pos) * (VERTEX_RADIUS / globalvars.scaleFactor)
+		trianglePos = last
+		drawBezier(first, middle , self.v2.pos, self.color)
+		
+		if self.animate:
+			drawBezier(first, middle , self.v2.pos, self.animate[1], 0, self.animate[0])
+		
 		if not self.directed:
 			return
-		angle = getAngleByTwoVectors(self.v2.pos, self.v1.pos)
+		angle = getAngleByTwoVectors(self.v2.pos, last)
 		triangle = [vectorCopy(v / globalvars.scaleFactor).rotate(angle) + trianglePos for v in TRIANGLE]
 		pygame.draw.polygon(win, self.color, [param(v) for v in triangle])
+
+class AnimateEdges:
+    _reg = []
+    def __init__(self, edges, startColor, endColor, time):
+        AnimateEdges._reg.append(self)
+        self.edges = edges
+        self.startColor = startColor
+        self.endColor = endColor
+        self.fullTime = time
+        self.time = 0
+        for edge in self.edges:
+            edge.color = startColor
+            edge.animate = [0, endColor]
+    def step(self):
+        t = self.time / self.fullTime
+        for edge in self.edges:
+            edge.animate[0] = t
+        self.time += 1
+        if self.time >= self.fullTime:
+            for edge in self.edges:
+                edge.color = self.endColor
+            AnimateEdges._reg.remove(self)
+
+def getPt(p1, p2, t):
+    diff = p2 - p1
+    return p1 + diff * t
+
+def drawBezier(p1, p2, p3, color, startt = 0.0, endt = 1.0):
+    points = []
+    steps = 20
+    t = startt
+    while(t <= endt):
+        a = getPt(p1, p2, t)
+        b = getPt(p2, p3, t)
+        p = getPt(a, b, t)
+        points.append(param(p))
+        
+        t += 0.05
+    if endt == 1.0:
+        points.append(param(p3))
+    if len(points) < 2:
+        return
+    pygame.draw.lines(win, color, False, points, EDGE_WIDTH)
 
 #####################################################################################
 
@@ -180,7 +237,7 @@ class algoDFS(Algo):
 			v.color = self.colors["unvisited"]
 	def step(self):
 		self.time += 1
-		if self.time % (fps//2) != 0:
+		if self.time % (fps) != 0:
 			return
 		if len(self.stack) == 0:
 			Algo._current = None
@@ -193,6 +250,8 @@ class algoDFS(Algo):
 		neighbors = list(listNeighbors(currentNode))
 		if self.order == "random":
 			shuffle(neighbors)
+		edges = [edge for edge in Edge._reg if edge.v1 is currentNode]
+		AnimateEdges(edges, DEFAULT_EDGE_COLOR, self.colors["visited"], fps//2)
 		for neighbor in neighbors:
 			if not neighbor in self.visited and not neighbor in self.stack:
 				self.stack.append(neighbor)
@@ -307,7 +366,8 @@ def menuEvents(event):
 	if event.getSuperMenu().name == "rightClickVertex":
 		Menu._reg.remove(event.getSuperMenu())
 	
-
+def textFunc():
+    AnimateEdges(Edge._reg, colorScheme[0], DEFAULT_EDGE_COLOR, fps * 2)
 	
 
 ##################################################################################### setup
@@ -407,6 +467,8 @@ def nodeEventHandler(events):
 			if event.key == pygame.K_h:
 				globalvars.cam = (0,0)
 				globalvars.scaleFactor = 5
+			if event.key == pygame.K_t:
+				textFunc()
 
 	lcontrol = False
 	keys = pygame.key.get_pressed()
@@ -442,9 +504,13 @@ def nodeEventHandler(events):
 			mouseMode = MOUSE_HAND
 
 def step():
-	menuStep()
-	if Algo._current:
-		Algo._current.step()
+    menuStep()
+    if Algo._current:
+        Algo._current.step()
+    
+    for anim in AnimateEdges._reg:
+        anim.step()
+    
 
 def draw():
 	for edge in Edge._reg:
